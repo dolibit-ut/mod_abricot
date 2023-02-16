@@ -1,4 +1,5 @@
 <?php
+
 /*
  Copyright (C) 2003-2013 Alexis Algoud <azriel68@gmail.com>
  Copyright (C) 2013-2015 ATM Consulting <support@atm-consulting.fr>
@@ -15,18 +16,19 @@
  GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 
 
-/*
- * Configuration du noyau
+/**
+ * Core configuration
  * 
- * Les constantes suivantes devront déjà être définie
+ * The following constants should already be defined
  * 
- * DB_DRIVER, DB_NAME, DB_USER, DB_PASS,DB_HOST // pour les connexions bases de données
- */ 
+ * DB_DRIVER, DB_NAME, DB_USER, DB_PASS,DB_HOST  // for database connections
+ */
+
  	if(defined('ATM_CORE_INCLUDED')) {
  		null;
 		
@@ -81,8 +83,8 @@
 			require_once(CORECLASS.'class.list.tbs.php');
 			
 			/* Début de la fin pour PDOdb */
-			require_once(CORECLASS.'class.listview.php'); // remplace TListviewTBS pour un objet Dolibarr
-			require_once(CORECLASS.'class.seedobject.php'); // remplace l'extend TObjetStd pour nos class
+			require_once(CORECLASS.'class.listview.php'); // replace TListviewTBS pour un objet Dolibarr
+			require_once(CORECLASS.'class.seedobject.php'); // replace l'extend TObjetStd pour nos class
 			
 			/* wkhtmltopdf */
 			require_once(CORECLASS.'Wkhtmltopdf.php');
