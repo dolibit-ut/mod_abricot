@@ -51,7 +51,7 @@ class modAbricot extends DolibarrModules
 
         // Family can be 'crm','financial','hr','projects','products','ecm','technic','other'
         // It is used to group modules in module setup page
-        $this->family = "technic";
+        $this->family = "ATM Consulting";
         // Module label (no space allowed)
         // used if translation string 'ModuleXXXName' not found
         // (where XXX is value of numeric property 'numero' of module)
@@ -61,8 +61,8 @@ class modAbricot extends DolibarrModules
         // (where XXX is value of numeric property 'numero' of module)
         $this->description = "Collection of specific ATM functions and classes";
         // Possible values for version are: 'development', 'experimental' or version
-        $this->version = '3.0.5';
-        $this->editor_name = 'ATM-Consulting';
+        $this->version = '3.5.4';
+        $this->editor_name = 'ATM Consulting';
         $this->editor_url = 'https://www.atm-consulting.fr';
         // Key used in llx_const table to save module status enabled/disabled
         // (where MYMODULE is value of property name of module in uppercase)
@@ -75,7 +75,7 @@ class modAbricot extends DolibarrModules
         // use this->picto='pictovalue'
         // If file is in module/img directory under name object_pictovalue.png
         // use this->picto='pictovalue@module'
-        $this->picto = 'coreatm@abricot'; // mypicto@mymodule
+        $this->picto = 'coreatm.svg@abricot'; // mypicto@mymodule
         // Defined all module parts (triggers, login, substitutions, menus, css, etc...)
         // for default path (eg: /mymodule/core/xxxxx) (0=disable, 1=enable)
         // for specific path of parts (eg: /mymodule/core/modules/barcode)

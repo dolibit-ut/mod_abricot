@@ -37,7 +37,8 @@ class TListviewTBS {
 	}
 	private function init(&$TParam) {
 
-		global $conf;
+		global $conf, $langs;
+		$langs->load('abricot@abricot');
 
 		if(!isset($TParam['hide']))$TParam['hide']=array();
 		if(!isset($TParam['link']))$TParam['link']=array();
@@ -49,7 +50,7 @@ class TListviewTBS {
 
 		if(!isset($TParam['liste']))$TParam['liste']=array();
 		$TParam['liste'] = array_merge(array(
-			'messageNothing'=>"Il n'y a aucun élément à afficher."
+			'messageNothing'=>$langs->trans("NothingToDisplay")
 			,'picto_precedent'=>'&lt;'
 			,'picto_suivant'=>'&gt;'
 			,'order_down'=>img_down()
@@ -458,9 +459,14 @@ class TListviewTBS {
 		$search_button.= '</div>';
 
 		if($nb_search_in_bar>0) {
-			end($TSearch);
-			list($key,$v) = each($TSearch);
-			$TSearch[$key].=$search_button;
+			if (version_compare(PHP_VERSION, '7.3.0') >= 0) {
+				$TSearch[array_key_last($TSearch)] .= $search_button;
+			}
+			else {
+				end($TSearch);
+				list($key, $v) = each($TSearch);
+				$TSearch[$key] .= $search_button;
+			}
 		}
 		else{
 			$TSearch=array();
@@ -606,11 +612,11 @@ class TListviewTBS {
 
 		$Tab=array();
 		if(!empty($TParam['export'])) {
-			$token = GETPOST('token');
-			if(empty($token)) $token = md5($this->id.time().rand(1,9999));
+
+			$token = function_exists('newToken') ? newToken() : $_SESSION['newtoken'];
 
 			$_SESSION['token_list_'.$token] = gzdeflate( serialize( array(
-				'title'=>$this->title
+				'title'=>!empty($this->title)?$this->title:''
 				,'sql'=>$this->sql
 				,'TBind'=>$this->TBind
 				,'TChamps'=>$TChamps

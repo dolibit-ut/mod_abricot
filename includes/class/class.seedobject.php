@@ -682,41 +682,16 @@ class SeedObject extends SeedObjectDolibarr
 	}
 
     /**
-     * @param int  $limit       Limit element returned
-     * @param bool $loadChild   used to load children from database
+     * @param int   $limit     Limit element returned
+     * @param bool  $loadChild used to load children from database
+     * @param array $TFilter
      * @return array
      */
-    public function fetchAll($limit = 0, $loadChild = true, $TFilter = array())
-    {
-        $TRes = array();
-
-        $sql = 'SELECT rowid FROM '.MAIN_DB_PREFIX.$this->table_element.' WHERE 1';
-        if (!empty($TFilter))
-        {
-            foreach ($TFilter as $field => $value)
-            {
-                $sql.= ' AND '.$field.' = '.$this->quote($value, $this->fields[$field]);
-            }
-        }
-        if ($limit) $sql.= ' LIMIT '.$limit;
-
-        $resql = $this->db->query($sql);
-        if ($resql)
-        {
-            while ($obj = $this->db->fetch_object($resql))
-            {
-                $o = new static($this->db);
-                $o->fetch($obj->rowid, $loadChild);
-
-                $TRes[] = $o;
-            }
-        }
-
-        return $TRes;
+    public function fetchAll($limit = 0, $loadChild = true, $TFilter = []) {
+        return $this->fetchByArray($limit, $TFilter, $loadChild, false);
     }
 
-
-	/**
+    /**
 	 *	Get object and children from database on custom field
 	 *
 	 *	@param      string		$key       		key of object to load
@@ -724,31 +699,54 @@ class SeedObject extends SeedObjectDolibarr
 	 * 	@param		bool		$loadChild		used to load children from database
 	 *	@return     int         				>0 if OK, <0 if KO, 0 if not found
 	 */
-	public function fetchBy($key, $field, $loadChild = true)
-	{
-
+    public function fetchBy($key, $field, $loadChild = true) {
 	    if(empty($this->fields[$field])) return false;
 
-	    $resql = $this->db->query("SELECT rowid FROM ".MAIN_DB_PREFIX.$this->table_element." WHERE ".$field."=".$this->quote($key, $this->fields[$field])." LIMIT 1 ");
+        return $this->fetchByArray(1, array($field => $key), $loadChild);
+	}
 
-	    if(! $resql)
-	    {
-		    $this->error = $this->db->lasterror();
+    /**
+     * @param   int     $limit
+     * @param   array   $TFilter
+     * @param   bool    $loadChild
+     * @param   bool    $justFetchIfOnlyOneResult   This parameter affect the function return type only if the query return one result;
+     *                                              true : it will fetch $this and return an integer;
+     *                                              false : it will return an array with objects inside
+     * @return  int|array                           >0 if OK, <0 if KO, 0 if not found or array with all objects inside
+     */
+    public function fetchByArray($limit = 0, $TFilter = array(), $loadChild = true, $justFetchIfOnlyOneResult = true) {
+        $sql = 'SELECT rowid';
+        $sql.= ' FROM '.MAIN_DB_PREFIX.$this->table_element;
+        $sql.= ' WHERE 1 = 1';
+
+        foreach($TFilter as $key => $field) {
+            $sql.= ' AND '.$this->db->escape($key).' = '.$this->quote($field, $this->fields[$key]);
+        }
+        if(! empty($limit)) $sql.= ' LIMIT '.$this->db->escape($limit);
+
+        $resql = $this->db->query($sql);
+        if(! $resql) {
+            $this->error = $this->db->lasterror();
 		    $this->errors[] = $this->error;
-		    return -1;
-	    }
-
-        $objp = $this->db->fetch_object($resql);
-        if (!$objp) return 0;
-
-        $res = $this->fetchCommon($objp->rowid);
-        if($res > 0 && ! empty($loadChild))
-		{
-			$this->fetchChild();
+            return -1;
         }
 
-	    return $res;
-	}
+        $nbRow = $this->db->num_rows($resql);
+
+        $TRes = array();
+        while($obj = $this->db->fetch_object($resql)) {
+            if($justFetchIfOnlyOneResult) {
+                return $this->fetch($obj->rowid, $loadChild);
+            }
+
+            $o = new static($this->db);
+            $o->fetch($obj->rowid, $loadChild);
+            $TRes[] = $o;
+        }
+
+        if($justFetchIfOnlyOneResult) return 0;
+        return $TRes;
+    }
 
     /**
      * Function to instantiate a new child
@@ -979,6 +977,7 @@ class SeedObject extends SeedObjectDolibarr
                     {
                         foreach($this->{'T'.$className} as &$object)
                         {
+                            $object->parent = $this;
                             $object->delete($user, $notrigger);
                         }
                     }
@@ -1028,12 +1027,12 @@ class SeedObject extends SeedObjectDolibarr
     {
 	  	if (empty($date))
 	  	{
-	  		$this->{$field} = 0;
+	  		$this->{$field} = null;
 	  	}
 		else
         {
 			require_once DOL_DOCUMENT_ROOT.'/core/lib/date.lib.php';
-			$this->{$field} = dol_stringtotime($date);
+			$this->{$field} = dol_stringtotime($date, 0);
 		}
 
 		return $this->{$field};
@@ -1052,7 +1051,7 @@ class SeedObject extends SeedObjectDolibarr
 		foreach ($Tab as $key => $value)
 		{
             if($this->fields[$key]['type'] == 'datetime'){
-                $value .= ' '. $Tab[$key.'hour'] .':'.$Tab[$key.'min'].':'.$Tab[$key.'sec'];
+                if(!empty($value)) $value .= ' '. $Tab[$key.'hour'] .':'.$Tab[$key.'min'].':'.$Tab[$key.'sec'];
                 $this->setDate($key, $value);
             }
 			else if($this->checkFieldType($key, 'date'))
@@ -1154,7 +1153,7 @@ class SeedObject extends SeedObjectDolibarr
 	public function fetchCommon($id, $ref = null, $morewhere='')
 	{
 		// method_exists() with key word 'parent' doesn't work
-		if (is_callable('parent::fetchCommon')) return parent::fetchCommon($id, $ref);
+		if (is_callable('parent::fetchCommon')) return parent::fetchCommon($id, $ref, $morewhere);
 
 
 		if (empty($id) && empty($ref)) return false;
@@ -1337,7 +1336,12 @@ class SeedObject extends SeedObjectDolibarr
 			{
 				if ($this->isInt($info))
 				{
-					$this->db->query('ALTER TABLE ' . MAIN_DB_PREFIX . $this->table_element . ' ADD ' . $champs . ' int(11) '.(!empty($info['notnull']) ? ' NOT NULL' : '' ).' DEFAULT \'' . (!empty($info['default']) && is_int($info['default']) ? $info['default'] : '0') . '\'');
+                    $sql = 'ALTER TABLE '.MAIN_DB_PREFIX.$this->table_element.' ADD '.$champs.' int(11) '.(! empty($info['notnull']) ? ' NOT NULL' : '').' DEFAULT \''.(! empty($info['default']) && is_int($info['default']) ? $info['default'] : '0')."'";
+                    if(array_key_exists('foreignkey', $info) && ! empty($info['foreignkey'])) {
+                        $fk = explode('.', $info['foreignkey']);    // fk[0] => tablename, fk[1] => field
+                        $sql.= ', ADD CONSTRAINT FOREIGN KEY ('.$champs.') REFERENCES '.$fk[0].'('.$fk[1].')';
+                    }
+					$this->db->query($sql);
 				}
 				else if ($this->isDate($info))
 				{
@@ -1370,7 +1374,7 @@ class SeedObject extends SeedObjectDolibarr
 
 		if(empty($this->table_element))exit('NoDataTableDefined');
 
-		$resql = $this->db->query("SHOW TABLES FROM " . $dolibarr_main_db_name . " LIKE '" . MAIN_DB_PREFIX . $this->table_element . "'");
+		$resql = $this->db->query("SHOW TABLES FROM `" . $dolibarr_main_db_name . "` LIKE '" . MAIN_DB_PREFIX . $this->table_element . "'");
 		if($resql === false) {
 			var_dump($this->db);exit;
 
@@ -1483,21 +1487,21 @@ class SeedObject extends SeedObjectDolibarr
 		}
 		return $this->{$nom_champ};
 	}
-	
-	
+
+
 	public function replaceCommon(User $user, $notrigger = false)
 	{
 		global $langs;
-		
+
 		$error = 0;
-		
+
 		$now=dol_now();
-		
+
 		$fieldvalues = $this->set_save_query();
 		if (array_key_exists('date_creation', $fieldvalues) && empty($fieldvalues['date_creation'])) $fieldvalues['date_creation']=$this->db->idate($now);
 		if (array_key_exists('fk_user_creat', $fieldvalues) && ! ($fieldvalues['fk_user_creat'] > 0)) $fieldvalues['fk_user_creat']=$user->id;
 		//unset($fieldvalues['rowid']);	// The field 'rowid' is reserved field name for autoincrement field so we don't need it into insert.
-		
+
 		$keys=array();
 		$values = array();
 		foreach ($fieldvalues as $k => $v) {
@@ -1505,36 +1509,36 @@ class SeedObject extends SeedObjectDolibarr
 			$value = $this->fields[$k];
 			$values[$k] = $this->quote($v, $value);
 		}
-		
+
 		// Clean and check mandatory
 		foreach($keys as $key)
 		{
 			// If field is an implicit foreign key field
 			if (preg_match('/^integer:/i', $this->fields[$key]['type']) && $values[$key] == '-1') $values[$key]='';
 			if (! empty($this->fields[$key]['foreignkey']) && $values[$key] == '-1') $values[$key]='';
-			
+
 			//var_dump($key.'-'.$values[$key].'-'.($this->fields[$key]['notnull'] == 1));
 			if ($this->fields[$key]['notnull'] == 1 && empty($values[$key]))
 			{
 				$error++;
 				$this->errors[]=$langs->trans("ErrorFieldRequired", $this->fields[$key]['label']);
 			}
-			
+
 			// If field is an implicit foreign key field
 			if (preg_match('/^integer:/i', $this->fields[$key]['type']) && empty($values[$key])) $values[$key]='null';
 			if (! empty($this->fields[$key]['foreignkey']) && empty($values[$key])) $values[$key]='null';
 		}
-		
+
 		if ($error) return -1;
-		
+
 		$this->db->begin();
-		
+
 		if (! $error)
 		{
 			$sql = 'REPLACE INTO '.MAIN_DB_PREFIX.$this->table_element;
 			$sql.= ' ('.implode( ", ", $keys ).')';
 			$sql.= ' VALUES ('.implode( ", ", $values ).')';
-			
+
 			$res = $this->db->query($sql);
 			if ($res===false) {
 				$error++;
@@ -1546,13 +1550,13 @@ class SeedObject extends SeedObjectDolibarr
 		{
 			$this->id = $this->db->last_insert_id(MAIN_DB_PREFIX . $this->table_element);
 		}
-		
+
 		if (! $error)
 		{
 			$result=$this->insertExtraFields();
 			if ($result < 0) $error++;
 		}
-		
+
 		if (! $error && ! $notrigger)
 		{
 			// Call triggers
@@ -1560,7 +1564,7 @@ class SeedObject extends SeedObjectDolibarr
 			if ($result < 0) { $error++; }
 			// End call triggers
 		}
-		
+
 		// Commit or rollback
 		if ($error) {
 			$this->db->rollback();

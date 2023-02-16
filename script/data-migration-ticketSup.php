@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * NOTE IMPORTANTE : Ce script ne rappatrie pas, dans llx_actioncomm, les messages présents dans la table llx_ticket_msg
+ * Ce script rappatrie, dans llx_actioncomm, uniquement les messages présents dans la table llx_ticketsup_msg
+ * Si besoin de rappatrier des messages de llx_ticket_msg (table qui n'est plus présente dès la V10 de Dolibarr) :
+ * utiliser le script suivant migration_ticketmsg_to_actioncomm.php présent dans /abricot/script
+ */
+
     if(is_file('../master.inc.php')) include '../master.inc.php';
     elseif(is_file('../../../master.inc.php')) include '../../../master.inc.php';
     elseif(is_file('../../../../master.inc.php')) include '../../../../master.inc.php';
@@ -41,9 +48,9 @@
 		}
 	}
 
-    /*
-     * CATEGORY
-     */
+    ///
+    // * CATEGORY
+    // */
 
     //on vide la table standard si on a la table de ticketsup
     $resql = $db->query("SHOW TABLES LIKE '".MAIN_DB_PREFIX."c_ticketsup_category'");
@@ -95,9 +102,9 @@
         }
     }
 
-    /*
-     * EXTRAFIELDS
-     */
+    //*
+    // * EXTRAFIELDS
+    // */
 
     //on vide la table standard si on a la table de ticketsup
     $resql = $db->query("SHOW TABLES LIKE '".MAIN_DB_PREFIX."ticketsup_extrafields'");
@@ -126,17 +133,19 @@
             $column = $object->Field;
             $type = $object->Type;
 
+
             //si extrafield, on rajoute la colonne dans le tableau
             if($column != 'rowid' && $column != 'tms' && $column != 'fk_object' && $column != 'import_key'){
                 $TColumnsExtrafields[$i]['name'] = $column;
                 $TColumnsExtrafields[$i]['type'] = $type;
+
             }
             $i++;
         }
 
         //pour chaque extrafield, on rajoute la colonne dans la table de ticket standard
         foreach ($TColumnsExtrafields as $column){
-            $sql = "ALTER TABLE ".MAIN_DB_PREFIX."ticket_extrafields ADD ".$column['name']." ".$column['type'];
+            $sql = "ALTER TABLE ".MAIN_DB_PREFIX."ticket_extrafields ADD `".$column['name']."` ".$column['type'];
             $db->query($sql);
         }
     }
@@ -176,11 +185,27 @@
             if(!empty($TColumnsExtrafields)){
                 foreach ($TColumnsExtrafields as $column){
                     $extrafieldName = $column['name'];
-                    $sql.= ",'".$db->escape($object->$extrafieldName)."'";
+                    $TDateFields = array('date_prev', 'deadline', 'date_detection');
+
+     				if(in_array($extrafieldName, $TDateFields) && ($object->$extrafieldName === '0000-00-00' || empty($object->$extrafieldName))){
+						$sql.= ", NULL ";
+					}
+     				elseif($extrafieldName == 'heure_est'){
+						$sql.= ", ".doubleval($object->$extrafieldName);
+					}
+					else{
+						if (preg_match('/int/i',$column['type'])){
+							$sql.= (!is_null($object->$extrafieldName)) ? ",'".$db->escape($object->$extrafieldName) . "'" : ",0" ;
+						}else{
+							$sql.= ",'".$db->escape($object->$extrafieldName)."'";
+						}
+
+					}
                 }
             }
 
             $sql.=")";
+
 
             $result = $db->query($sql);
 
@@ -226,9 +251,9 @@
         }
     }
 
-    /*
-     * SEVERITY
-     */
+    //*//
+    // * SEVERITY
+    // */
 
     //on vide la table standard si on a la table de ticketsup
     $resql = $db->query("SHOW TABLES LIKE '".MAIN_DB_PREFIX."c_ticketsup_severity'");
@@ -272,9 +297,9 @@
     }
 
 
-    /*
-     * TYPE
-     */
+    //*
+    // * TYPE
+    // */
 
     //on vide la table standard si on a la table de ticketsup
     $resql = $db->query("SHOW TABLES LIKE '".MAIN_DB_PREFIX."c_ticketsup_type'");
@@ -319,9 +344,9 @@
     }
 
 
-    /*
-     * TICKET
-     */
+    //*
+    // * TICKET
+    // */
 
     //on vide la table standard si on a la table de ticketsup
     $resql = $db->query("SHOW TABLES LIKE '".MAIN_DB_PREFIX."ticketsup'");
@@ -338,7 +363,7 @@
     if ($resql)
     {
     	$TStatusChange = array(
-			0 => 0
+			 0 => 0
 			,1 => 1
 			,2 => 2
 			,3 => 3
@@ -372,24 +397,40 @@
             $sql.= "'".$object->entity."',";
             $sql.= "'".$object->ref."',";
             $sql.= "'".$object->track_id."',";
-            $sql.= "'".$object->fk_soc."',";
-            $sql.= "'".$object->fk_project."',";
+			$sql.= (!empty($object->fk_soc)?intval($object->fk_soc):'NULL').",";
+			$sql.= (!empty($object->fk_project)?intval($object->fk_project):'NULL').",";
             $sql.= "'".$object->origin_email."',";
-            $sql.= "'".$object->fk_user_create."',";
-            $sql.= "'".$object->fk_user_assign."',";
+			$sql.= (!empty($object->fk_user_create)?intval($object->fk_user_create):'NULL').",";
+            $sql.= (!empty($object->fk_user_assign)?intval($object->fk_user_assign):'NULL').",";
             $sql.= "'".$db->escape($object->subject)."',";
             $sql.= "'".$db->escape($object->message)."',";
-            $sql.= "'".$TStatusChange[$object->fk_statut]."',";
-            $sql.= "'".$object->resolution."',";
+			$sql.= (!empty($TStatusChange[$object->fk_statut])?intval($TStatusChange[$object->fk_statut]):'NULL').",";
+            $sql.= intval($object->resolution).",";
             $sql.= "'".$object->progress."',";
             $sql.= "'".$object->timing."',";
             $sql.= "'".$db->escape($object->type_code)."',";
             $sql.= "'".$object->category_code."',";
             $sql.= "'".$object->severity_code."',";
-            $sql.= "'".$object->datec."',";
-            $sql.= "'".$object->date_read."',";
-            $sql.= "'".$object->date_close."',";
-            $sql.= "'',";
+
+			if(empty($object->datec) || $object->datec === '0000-00-00'){
+				$sql.=" NULL,";
+			}else{
+				$sql.= "'".$object->datec."',";
+			}
+
+            if(empty($object->date_read) || $object->date_read === '0000-00-00'){
+				$sql.=" NULL,";
+			}else{
+				$sql.= "'".$object->date_read."',";
+			}
+
+			if(empty($object->date_close) || $object->date_close === '0000-00-00'){
+				$sql.=" NULL,";
+			}else{
+				$sql.= "'".$object->date_close."',";
+			}
+
+            $sql.= " NULL,";
             $sql.= "'".$object->tms."'";
             $sql.= ")";
 
@@ -409,9 +450,9 @@
 
     }
 
-    /*
-     * MESSAGES
-     */
+    //*
+    // * MESSAGES
+    // */
 
     //on vide la table standard si on a la table de ticketsup
     $resql = $db->query("SHOW TABLES LIKE '".MAIN_DB_PREFIX."ticketsup_msg'");
@@ -452,24 +493,39 @@
             //on insère les données de ticketsup dans la table de ticket standard si la note est associée à un ticket
             if(!empty($fk_element)){
 
-                $sql = "INSERT INTO ".MAIN_DB_PREFIX."actioncomm (entity, fk_user_action, datec, note, fk_element, elementtype)";
+				$field = (float) DOL_VERSION >= 14  ? ' ref, ' : '';
+                $sql = "INSERT INTO ".MAIN_DB_PREFIX."actioncomm ( " . $field . " entity, fk_user_action, datec, note, fk_element, elementtype, label)";
 
                 $sql.= " VALUES (";
-                $sql.= "'".$entity."',";
+				$sql .= ((float) DOL_VERSION >= 14 ) ? " '(PROV)'," : "";
+				$sql.= "'".$entity."',";
                 $sql.= "'".$fk_user_action."',";
                 $sql.= "'".$datec."',";
                 $sql.= "'".$db->escape($note)."',";
                 $sql.= "'".$fk_element."',";
-                $sql.= "'".$elementtype."'";
+                $sql.= "'".$elementtype."',";
+                $sql.= "''";
                 $sql.= ")";
 
-                $result = $db->query($sql);
-
-                if(!$result){
-                    dol_print_error($db);
-                    $error_actioncomm = 1;
-                }
-            }
+				$resql2 = $db->query($sql);
+				if ($resql2) {
+					if ((float) DOL_VERSION >= 14 ) {
+						$ref = $id = $db->last_insert_id(MAIN_DB_PREFIX . "actioncomm", "id");
+						$sql = "UPDATE " . MAIN_DB_PREFIX . "actioncomm SET ref='" . $db->escape($ref) . "' WHERE id=" . $id;
+						$resql2 = $db->query($sql);
+						if (!$resql2) {
+							$error++;
+							dol_syslog('Error to process ref: ' . $this->db->lasterror(), LOG_ERR);
+							$this->errors[] = $db->lasterror();
+							//dol_print_error($db);
+							//$error_actioncomm = 1;
+						}
+					}
+            	}else{
+					dol_print_error($db);
+					$error_actioncomm = 1;
+				}
+			}
             $i++;
         }
 
@@ -478,9 +534,9 @@
         }
     }
 
-    /*
-     * PIECES JOINTES
-     */
+    //*
+    //* PIECES JOINTES
+    // */
 
     $dir_ticket = $dolibarr_main_data_root . '/ticket';
     $dir_ticketsup = $dolibarr_main_data_root . '/ticketsup';
@@ -537,9 +593,9 @@
         }
     }
 
-    /*
-     * RESULTAT SCRIPT
-     */
+    //*
+    // * RESULTAT SCRIPT
+    // */
 
     if(!empty($error_dir) || !empty($error_actioncomm) || !empty($error_category) || !empty($error_extrafields) || !empty($error_severity) || !empty($error_severity) || !empty($error_type) || !empty($error_ticket) || !empty($error_conf)){
         $db->rollback();
