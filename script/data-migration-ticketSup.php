@@ -1,7 +1,7 @@
 <?php
 
 /**
- * NOTE IMPORTANTE : Ce script ne rappatrie pas, dans llx_actioncomm, les messages présents dans la table llx_ticket_msg
+ * NOTE IMPORTANT:  This script does not report, in llx_actioncomm, the messages present in the table llx_ticket_msg
  * Ce script rappatrie, dans llx_actioncomm, uniquement les messages présents dans la table llx_ticketsup_msg
  * Si besoin de rappatrier des messages de llx_ticket_msg (table qui n'est plus présente dès la V10 de Dolibarr) :
  * utiliser le script suivant migration_ticketmsg_to_actioncomm.php présent dans /abricot/script
